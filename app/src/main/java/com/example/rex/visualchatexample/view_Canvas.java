@@ -20,16 +20,26 @@ public class view_Canvas extends View{
 
     Context context;
     Bitmap bitmap;
-    Paint p;
+    Paint p = new Paint();
     ScaleGestureDetector scaleDetector;
     GestureDetector gestureDetector;
-    boolean DragMode = true;
+
+    final int DRAG = 0;
+    final int DRAW = 1;
+    int MODE = DRAG;
 
     Matrix matrix = new Matrix();
 
+    final int MARGINAL_BLANK = 700;
     float currentZoom = 1f;
     int image_height;
     int image_width;
+    int total_height;
+    int total_width;
+
+    Color color;
+    Canvas PaintLayer;
+    Bitmap b;
 
     public view_Canvas(Context c){
         super(c);
@@ -50,6 +60,9 @@ public class view_Canvas extends View{
     public void init(){
         scaleDetector = new ScaleGestureDetector(context, new ScaleListener());
         gestureDetector = new GestureDetector(context, new ScrollListener());
+        b = Bitmap.createBitmap(100, 100, Bitmap.Config.ARGB_8888);
+        PaintLayer = new Canvas(b);
+        PaintLayer.drawColor(Color.BLACK);
     }
 
     @Override
@@ -57,31 +70,46 @@ public class view_Canvas extends View{
         super.onDraw(canvas);
         canvas.save();
 
-        p = new Paint();
-        p.setColor(Color.BLACK);
         if (bitmap!=null) {
             canvas.drawBitmap(bitmap, matrix, p);
         }else{
             LoadFromDrawable(R.drawable.colortest);
         }
+        canvas.drawBitmap(b,matrix,p);
 
         canvas.restore();
     }
 
     public void LoadFromDrawable(int id){
-        bitmap = BitmapFactory.decodeResource(getResources(),id);
-        image_width = bitmap.getWidth();
-        image_height = bitmap.getHeight();
+        Bitmap Source = BitmapFactory.decodeResource(getResources(),id);
+        image_width = Source.getWidth();
+        image_height = Source.getHeight();
+        total_height =2 * MARGINAL_BLANK + image_height;
+        total_width = 2 * MARGINAL_BLANK + image_width;
+
+        bitmap = Bitmap.createBitmap(total_width, total_height, Bitmap.Config.ARGB_8888);
+        Canvas temp= new Canvas(bitmap);
+        temp.drawColor(Color.WHITE);
+        temp.drawBitmap(Source,MARGINAL_BLANK, MARGINAL_BLANK, new Paint());
+
+        matrix.preTranslate(-MARGINAL_BLANK,-MARGINAL_BLANK);
+
         this.invalidate();
     }
 
     @Override
     public boolean onTouchEvent(MotionEvent e){
-        if (DragMode) {
+        if (MODE==DRAG) {
             scaleDetector.onTouchEvent(e);
             gestureDetector.onTouchEvent(e);
+        }else{
+            PaintHandler(e);
         }
         return true;
+    }
+
+    public void PaintHandler(MotionEvent e){
+
     }
 
     public class ScrollListener implements android.view.GestureDetector.OnGestureListener{
@@ -148,6 +176,14 @@ public class view_Canvas extends View{
     public void reset(){
         matrix.reset();
         invalidate();
+    }
+
+    public void DDShift(){
+        MODE = MODE==DRAG?DRAW:DRAG;
+    }
+
+    public void ChangeColor(Color c){
+        color =c ;
     }
 
 }

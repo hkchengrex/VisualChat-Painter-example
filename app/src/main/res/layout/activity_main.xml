@@ -37,10 +37,17 @@
                 android:text="D/D"
                 android:id="@+id/button3" />
 
+            <Button
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Panel"
+                android:id="@+id/button4" />
+
         </LinearLayout>
         <com.example.rex.visualchatexample.view_Canvas
             android:layout_width="match_parent"
             android:layout_height="fill_parent"
-            android:id="@+id/canvasboard" />
+            android:id="@+id/canvasboard"
+            android:background="#ffe5e5e5" />
     </LinearLayout>
 </RelativeLayout>
