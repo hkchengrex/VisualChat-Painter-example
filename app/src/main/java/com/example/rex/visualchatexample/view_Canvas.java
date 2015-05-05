@@ -7,11 +7,14 @@ import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Matrix;
 import android.graphics.Paint;
+import android.graphics.Path;
 import android.util.AttributeSet;
 import android.view.GestureDetector;
 import android.view.MotionEvent;
 import android.view.ScaleGestureDetector;
 import android.view.View;
+
+import java.util.ArrayList;
 
 /**
  * Created by Rex on 30/4/2015.
@@ -19,27 +22,40 @@ import android.view.View;
 public class view_Canvas extends View{
 
     Context context;
-    Bitmap bitmap;
+    Bitmap bgBitmap;
+    Bitmap pathBitmap;
     Paint p = new Paint();
     ScaleGestureDetector scaleDetector;
     GestureDetector gestureDetector;
 
+    //USE FOR D/D Shift
     final int DRAG = 0;
     final int DRAW = 1;
     int MODE = DRAG;
 
+    //MATRIX FOR ZOOMING AND DRAGING
     Matrix matrix = new Matrix();
 
+    //WHITE SPACE AT THE MARGIN
     final int MARGINAL_BLANK = 700;
-    float currentZoom = 1f;
-    int image_height;
-    int image_width;
-    int total_height;
-    int total_width;
+    float currentZoom = 10f;
+    //Image is for the bgBitmap; total is for the whole canvas
+    int image_height, image_width, total_height, total_width;
 
-    Color color;
     Canvas PaintLayer;
-    Bitmap b;
+    Bitmap PaintOverlay;
+    //Stored path
+    ArrayList<PaintPath> mPaintpaths = new ArrayList<>();
+    //Min. separation to save points
+    float TOLERANCE = 1f;
+    //Coordinate of last paint
+    float px,py;
+    //Current Drawing Path
+    Path mPath = new Path();
+    //Current Drawing Paint, with all path included
+    PaintPath mPPath;
+    //Current Paint
+    Paint currPaint = new Paint();
 
     public view_Canvas(Context c){
         super(c);
@@ -60,9 +76,18 @@ public class view_Canvas extends View{
     public void init(){
         scaleDetector = new ScaleGestureDetector(context, new ScaleListener());
         gestureDetector = new GestureDetector(context, new ScrollListener());
-        b = Bitmap.createBitmap(100, 100, Bitmap.Config.ARGB_8888);
-        PaintLayer = new Canvas(b);
-        PaintLayer.drawColor(Color.BLACK);
+
+        currPaint.setColor(Color.BLACK);
+        currPaint.setStyle(Paint.Style.STROKE);
+        currPaint.setStrokeWidth(5f);
+
+        mPPath = new PaintPath(currPaint);
+    }
+
+    public void initPaintLayer(){
+        PaintOverlay = Bitmap.createBitmap(total_width, total_height, Bitmap.Config.ARGB_8888);
+        PaintLayer = new Canvas(PaintOverlay);
+        PaintLayer.drawColor(Color.TRANSPARENT);
     }
 
     @Override
@@ -70,12 +95,13 @@ public class view_Canvas extends View{
         super.onDraw(canvas);
         canvas.save();
 
-        if (bitmap!=null) {
-            canvas.drawBitmap(bitmap, matrix, p);
+        if (bgBitmap !=null) {
+            canvas.drawBitmap(bgBitmap, matrix, p);
         }else{
             LoadFromDrawable(R.drawable.colortest);
         }
-        canvas.drawBitmap(b,matrix,p);
+
+        canvas.drawBitmap(MakePathBitmap(), matrix, p);
 
         canvas.restore();
     }
@@ -87,12 +113,13 @@ public class view_Canvas extends View{
         total_height =2 * MARGINAL_BLANK + image_height;
         total_width = 2 * MARGINAL_BLANK + image_width;
 
-        bitmap = Bitmap.createBitmap(total_width, total_height, Bitmap.Config.ARGB_8888);
-        Canvas temp= new Canvas(bitmap);
+        bgBitmap = Bitmap.createBitmap(total_width, total_height, Bitmap.Config.ARGB_8888);
+        Canvas temp= new Canvas(bgBitmap);
         temp.drawColor(Color.WHITE);
         temp.drawBitmap(Source,MARGINAL_BLANK, MARGINAL_BLANK, new Paint());
 
         matrix.preTranslate(-MARGINAL_BLANK,-MARGINAL_BLANK);
+        initPaintLayer();
 
         this.invalidate();
     }
@@ -109,7 +136,47 @@ public class view_Canvas extends View{
     }
 
     public void PaintHandler(MotionEvent e){
+        float x = e.getX();
+        float y = e.getY();
 
+        switch (e.getAction()) {
+
+            case MotionEvent.ACTION_DOWN:
+                mtouch_start(x, y);
+                invalidate();
+                break;
+
+            case MotionEvent.ACTION_MOVE:
+                if(((x-px)*(x-py)+(y-py)*(y-py))>TOLERANCE){
+                    mtouch_move(x, y);
+                    invalidate();
+                }
+                break;
+
+            case MotionEvent.ACTION_UP:
+                mtouch_up();
+                invalidate();
+                break;
+        }
+    }
+
+    public void mtouch_start(float x, float y) {
+        mPath.reset();
+        mPath.moveTo(x, y);
+        px = x;
+        py = y;
+    }
+    public void mtouch_move(float x, float y) {
+        mPath.quadTo(px, py, (x + px)/2, (y + py)/2);
+        px = x;
+        py = y;
+
+    }
+
+    public void mtouch_up() {
+        mPath.lineTo(px, py);
+        mPath = new Path();
+        mPPath.paths.add(mPath);
     }
 
     public class ScrollListener implements android.view.GestureDetector.OnGestureListener{
@@ -175,15 +242,53 @@ public class view_Canvas extends View{
 
     public void reset(){
         matrix.reset();
+        mPaintpaths.clear();
+        mPPath.paths.clear();
+        mPath.reset();
         invalidate();
     }
 
+    //Shift Drag <--> Draw Mode, a.k.a. D/D
     public void DDShift(){
-        MODE = MODE==DRAG?DRAW:DRAG;
+        MODE=MODE==DRAG?DRAW:DRAG;
     }
 
     public void ChangeColor(Color c){
-        color =c ;
+        //TODO:finish this
+    }
+
+    //A class with a specified paint type, with a arraylist of path included
+    public class PaintPath{
+
+        Paint paint;
+        public  ArrayList<Path> paths;
+
+        public PaintPath(Paint p){
+            paint = p;
+            paths = new ArrayList<>();
+        }
+
+    }
+
+    public Bitmap MakePathBitmap(){
+        Canvas c = new Canvas(PaintOverlay);
+
+        //Draw the current Path
+        c.drawPath((mPath),currPaint);
+
+        //Draw the stored Path WITH CURRENT paint
+        for (Path p:mPPath.paths){
+            c.drawPath((p),mPPath.paint);
+        }
+
+        //Draw stored Path WITH HISTORICAL paint
+        for (PaintPath PP: mPaintpaths){
+            for (Path p :PP.paths){
+                c.drawPath((p),PP.paint);
+            }
+        }
+
+        return PaintOverlay;
     }
 
 }
