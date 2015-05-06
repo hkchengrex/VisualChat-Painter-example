@@ -21,27 +21,38 @@
             <Button
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Load"
+                android:layout_weight="1"
+                android:text="L"
                 android:id="@+id/button1"
                 android:nestedScrollingEnabled="false" />
 
             <Button
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Reset"
+                android:layout_weight="1"
+                android:text="R"
                 android:id="@+id/button2" />
 
             <Button
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="D/D"
+                android:layout_weight="1"
+                android:text="D"
                 android:id="@+id/button3" />
 
             <Button
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Panel"
+                android:layout_weight="1"
+                android:text="P"
                 android:id="@+id/button4" />
+
+            <Button
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="E"
+                android:id="@+id/button5" />
 
         </LinearLayout>
         <com.example.rex.visualchatexample.view_Canvas

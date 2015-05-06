@@ -4,12 +4,14 @@ import android.app.AlertDialog;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.graphics.Color;
+import android.graphics.Paint;
 import android.support.v7.app.ActionBarActivity;
 import android.os.Bundle;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.Button;
+import android.widget.SeekBar;
 
 import com.larswerkman.holocolorpicker.ColorPicker;
 import com.larswerkman.holocolorpicker.SVBar;
@@ -21,8 +23,11 @@ public class MainActivity extends ActionBarActivity {
     Button reset;
     Button ddshift;
     Button pick;
+    Button erase;
     view_Canvas Board;
     Context context;
+    int currColor = Color.BLACK;
+    int currWidth = 0;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -42,6 +47,8 @@ public class MainActivity extends ActionBarActivity {
         ddshift.setOnClickListener(DDShift);
         pick = (Button) findViewById(R.id.button4);
         pick.setOnClickListener(Pick);
+        erase = (Button) findViewById(R.id.button5);
+        erase.setOnClickListener(EraseSE);
         Board =(view_Canvas) findViewById(R.id.canvasboard);
     }
 
@@ -95,16 +102,28 @@ public class MainActivity extends ActionBarActivity {
             builder.setTitle("Pick: ");
             View view = getLayoutInflater().inflate(R.layout.dialog_colorpicker, null);
             final ColorPicker picker = (ColorPicker) view.findViewById(R.id.picker);
-            SVBar svBar = (SVBar) view.findViewById(R.id.svbar);
+            final SeekBar WidthSeek = (SeekBar) view.findViewById(R.id.seekBar);
+            final SVBar svBar = (SVBar) view.findViewById(R.id.svbar);
             picker.addSVBar(svBar);
+
+            WidthSeek.setProgress(currWidth);
+            picker.setColor(currColor);
+
             picker.setShowOldCenterColor(false);
             builder.setView(view);
 
             builder.setPositiveButton("OK",new DialogInterface.OnClickListener() {
                 @Override
                 public void onClick(DialogInterface dialog, int which) {
-                   System.out.println(picker.getColor());
-                    //TODO: Finish Color Picking, a method ChangeColor is already written
+                    currWidth = WidthSeek.getProgress()*3;
+                    currColor = picker.getColor();
+
+                    Paint p = new Paint();
+                    p.setStyle(Paint.Style.STROKE);
+                    p.setColor(currColor);
+                    p.setStrokeWidth(currWidth);
+
+                    Board.ChangePaint(p);
                 }
             }).setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
                 @Override
@@ -112,6 +131,13 @@ public class MainActivity extends ActionBarActivity {
 
                 }
             }).show();
+        }
+    };
+
+    View.OnClickListener EraseSE = new View.OnClickListener() {
+        @Override
+        public void onClick(View v) {
+            Board.EDShift();
         }
     };
 

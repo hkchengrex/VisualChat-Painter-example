@@ -15,6 +15,7 @@ import android.view.ScaleGestureDetector;
 import android.view.View;
 
 import java.util.ArrayList;
+import java.util.Iterator;
 
 /**
  * Created by Rex on 30/4/2015.
@@ -23,22 +24,24 @@ public class view_Canvas extends View{
 
     Context context;
     Bitmap bgBitmap;
-    Bitmap pathBitmap;
     Paint p = new Paint();
     ScaleGestureDetector scaleDetector;
     GestureDetector gestureDetector;
 
-    //USE FOR D/D Shift
+    //USE FOR D/D Shift and E/D Shift
     final int DRAG = 0;
     final int DRAW = 1;
-    int MODE = DRAG;
+    final int ERASE=0;
+    int DDMODE = DRAG;
+    int EDMODE = DRAW;
 
-    //MATRIX FOR ZOOMING AND DRAGING
-    Matrix matrix = new Matrix();
+    //MATRIX FOR ZOOMING AND DRAGGING
+    Matrix GrapicsMatrix = new Matrix();
+    Matrix PathMatrix = new Matrix();
 
     //WHITE SPACE AT THE MARGIN
     final int MARGINAL_BLANK = 700;
-    float currentZoom = 10f;
+    float currentZoom = 0.1f;
     //Image is for the bgBitmap; total is for the whole canvas
     int image_height, image_width, total_height, total_width;
 
@@ -55,7 +58,7 @@ public class view_Canvas extends View{
     //Current Drawing Paint, with all path included
     PaintPath mPPath;
     //Current Paint
-    Paint currPaint = new Paint();
+    public Paint currPaint = new Paint();
 
     public view_Canvas(Context c){
         super(c);
@@ -96,12 +99,12 @@ public class view_Canvas extends View{
         canvas.save();
 
         if (bgBitmap !=null) {
-            canvas.drawBitmap(bgBitmap, matrix, p);
+            canvas.drawBitmap(bgBitmap, GrapicsMatrix, p);
         }else{
             LoadFromDrawable(R.drawable.colortest);
         }
 
-        canvas.drawBitmap(MakePathBitmap(), matrix, p);
+        canvas.drawBitmap(MakePathBitmap(), GrapicsMatrix, p);
 
         canvas.restore();
     }
@@ -110,15 +113,17 @@ public class view_Canvas extends View{
         Bitmap Source = BitmapFactory.decodeResource(getResources(),id);
         image_width = Source.getWidth();
         image_height = Source.getHeight();
+        //Make some margin space
         total_height =2 * MARGINAL_BLANK + image_height;
         total_width = 2 * MARGINAL_BLANK + image_width;
 
+        //Create the bitmap with the margin
         bgBitmap = Bitmap.createBitmap(total_width, total_height, Bitmap.Config.ARGB_8888);
         Canvas temp= new Canvas(bgBitmap);
         temp.drawColor(Color.WHITE);
         temp.drawBitmap(Source,MARGINAL_BLANK, MARGINAL_BLANK, new Paint());
 
-        matrix.preTranslate(-MARGINAL_BLANK,-MARGINAL_BLANK);
+        GrapicsMatrix.preTranslate(-MARGINAL_BLANK, -MARGINAL_BLANK);
         initPaintLayer();
 
         this.invalidate();
@@ -126,7 +131,7 @@ public class view_Canvas extends View{
 
     @Override
     public boolean onTouchEvent(MotionEvent e){
-        if (MODE==DRAG) {
+        if (DDMODE ==DRAG) {
             scaleDetector.onTouchEvent(e);
             gestureDetector.onTouchEvent(e);
         }else{
@@ -138,6 +143,11 @@ public class view_Canvas extends View{
     public void PaintHandler(MotionEvent e){
         float x = e.getX();
         float y = e.getY();
+        float[] point = {x,y};
+        //Reflect the point coordinate using the inverse matrix created in D/D
+        PathMatrix.mapPoints(point);
+        x=point[0];
+        y=point[1];
 
         switch (e.getAction()) {
 
@@ -147,10 +157,10 @@ public class view_Canvas extends View{
                 break;
 
             case MotionEvent.ACTION_MOVE:
-                if(((x-px)*(x-py)+(y-py)*(y-py))>TOLERANCE){
+                if(((x-px)*(x-px)+(y-py)*(y-py))>TOLERANCE){
                     mtouch_move(x, y);
                     invalidate();
-                }
+               }
                 break;
 
             case MotionEvent.ACTION_UP:
@@ -207,7 +217,7 @@ public class view_Canvas extends View{
         @Override
         public boolean onScroll(MotionEvent downEvent, MotionEvent currentEvent,
                                 float distanceX, float distanceY) {
-            matrix.postTranslate(-distanceX, -distanceY);
+            GrapicsMatrix.postTranslate(-distanceX, -distanceY);
             invalidate();
             return true;
         }
@@ -225,7 +235,7 @@ public class view_Canvas extends View{
             transformationMatrix.postScale(detector.getScaleFactor(), detector.getScaleFactor());
             transformationMatrix.postTranslate(focusX, focusY);
 
-            matrix.postConcat(transformationMatrix);
+            GrapicsMatrix.postConcat(transformationMatrix);
             invalidate();
             return true;
         }
@@ -241,7 +251,7 @@ public class view_Canvas extends View{
     }
 
     public void reset(){
-        matrix.reset();
+        GrapicsMatrix.reset();
         mPaintpaths.clear();
         mPPath.paths.clear();
         mPath.reset();
@@ -250,11 +260,13 @@ public class view_Canvas extends View{
 
     //Shift Drag <--> Draw Mode, a.k.a. D/D
     public void DDShift(){
-        MODE=MODE==DRAG?DRAW:DRAG;
+        DDMODE = DDMODE ==DRAG?DRAW:DRAG;
+        //Create an inverse matrix for reflecting local coordinate back into the big picture
+        GrapicsMatrix.invert(PathMatrix);
     }
 
-    public void ChangeColor(Color c){
-        //TODO:finish this
+    public void ChangePaint(Paint p){
+        currPaint = p;
     }
 
     //A class with a specified paint type, with a arraylist of path included
@@ -271,24 +283,35 @@ public class view_Canvas extends View{
     }
 
     public Bitmap MakePathBitmap(){
+        //Save on a bitmap overlay for matrix transformation
         Canvas c = new Canvas(PaintOverlay);
 
         //Draw the current Path
-        c.drawPath((mPath),currPaint);
+        c.drawPath((mPath), currPaint);
 
+        Iterator<Path> it1 = mPPath.paths.iterator();
         //Draw the stored Path WITH CURRENT paint
-        for (Path p:mPPath.paths){
-            c.drawPath((p),mPPath.paint);
+        while (it1.hasNext()){
+            c.drawPath(it1.next(),mPPath.paint);
+            it1.remove();
         }
 
+        Iterator<PaintPath> it2 = mPaintpaths.iterator();
         //Draw stored Path WITH HISTORICAL paint
-        for (PaintPath PP: mPaintpaths){
-            for (Path p :PP.paths){
-                c.drawPath((p),PP.paint);
+        while (it2.hasNext()){
+            PaintPath current = it2.next();
+            for (Path p :current.paths){
+                c.drawPath((p),current.paint);
             }
+            it2.remove();
         }
 
         return PaintOverlay;
+    }
+
+    //Shift Erase <-> Draw Mode, a.k.a. E/D
+    public void EDShift(){
+        EDMODE = EDMODE==DRAW?ERASE:DRAW;
     }
 
 }
