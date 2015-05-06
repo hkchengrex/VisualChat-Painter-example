@@ -8,6 +8,8 @@ import android.graphics.Color;
 import android.graphics.Matrix;
 import android.graphics.Paint;
 import android.graphics.Path;
+import android.graphics.PorterDuff;
+import android.graphics.PorterDuffXfermode;
 import android.util.AttributeSet;
 import android.view.GestureDetector;
 import android.view.MotionEvent;
@@ -100,17 +102,14 @@ public class view_Canvas extends View{
 
         if (bgBitmap !=null) {
             canvas.drawBitmap(bgBitmap, GrapicsMatrix, p);
-        }else{
-            LoadFromDrawable(R.drawable.colortest);
+            canvas.drawBitmap(MakePathBitmap(), GrapicsMatrix, p);
         }
-
-        canvas.drawBitmap(MakePathBitmap(), GrapicsMatrix, p);
 
         canvas.restore();
     }
 
-    public void LoadFromDrawable(int id){
-        Bitmap Source = BitmapFactory.decodeResource(getResources(),id);
+    public void LoadFromDrawable(Bitmap Source){
+        reset();
         image_width = Source.getWidth();
         image_height = Source.getHeight();
         //Make some margin space
@@ -182,7 +181,6 @@ public class view_Canvas extends View{
         py = y;
 
     }
-
     public void mtouch_up() {
         mPath.lineTo(px, py);
         mPath = new Path();
@@ -252,9 +250,11 @@ public class view_Canvas extends View{
 
     public void reset(){
         GrapicsMatrix.reset();
+        PathMatrix.reset();
         mPaintpaths.clear();
         mPPath.paths.clear();
         mPath.reset();
+        if (PaintOverlay!=null){initPaintLayer();}
         invalidate();
     }
 
@@ -287,7 +287,17 @@ public class view_Canvas extends View{
         Canvas c = new Canvas(PaintOverlay);
 
         //Draw the current Path
-        c.drawPath((mPath), currPaint);
+        if (EDMODE==ERASE) {
+            Paint p = new Paint();
+            p.setAlpha(0x00);
+            p.setColor(Color.TRANSPARENT);
+            p.setStrokeWidth(currPaint.getStrokeWidth());
+            p.setXfermode(new PorterDuffXfermode(PorterDuff.Mode.CLEAR));
+            p.setStyle(Paint.Style.STROKE);
+            c.drawPath((mPath), p);
+        }else{
+            c.drawPath((mPath), currPaint);
+        }
 
         Iterator<Path> it1 = mPPath.paths.iterator();
         //Draw the stored Path WITH CURRENT paint
@@ -311,6 +321,7 @@ public class view_Canvas extends View{
 
     //Shift Erase <-> Draw Mode, a.k.a. E/D
     public void EDShift(){
+        mPath.reset();
         EDMODE = EDMODE==DRAW?ERASE:DRAW;
     }
 

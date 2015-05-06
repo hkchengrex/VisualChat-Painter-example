@@ -1,10 +1,20 @@
 package com.example.rex.visualchatexample;
 
+import android.annotation.SuppressLint;
+import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.Context;
 import android.content.DialogInterface;
+import android.content.Intent;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
+import android.net.Uri;
+import android.os.AsyncTask;
+import android.os.Environment;
+import android.os.ParcelFileDescriptor;
 import android.support.v7.app.ActionBarActivity;
 import android.os.Bundle;
 import android.view.Menu;
@@ -16,6 +26,14 @@ import android.widget.SeekBar;
 import com.larswerkman.holocolorpicker.ColorPicker;
 import com.larswerkman.holocolorpicker.SVBar;
 
+import java.io.File;
+import java.io.FileDescriptor;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
+import java.util.Calendar;
+
 
 public class MainActivity extends ActionBarActivity {
 
@@ -24,6 +42,7 @@ public class MainActivity extends ActionBarActivity {
     Button ddshift;
     Button pick;
     Button erase;
+    Button save;
     view_Canvas Board;
     Context context;
     int currColor = Color.BLACK;
@@ -49,6 +68,8 @@ public class MainActivity extends ActionBarActivity {
         pick.setOnClickListener(Pick);
         erase = (Button) findViewById(R.id.button5);
         erase.setOnClickListener(EraseSE);
+        save = (Button) findViewById(R.id.button6);
+        save.setOnClickListener(SaveBitmap);
         Board =(view_Canvas) findViewById(R.id.canvasboard);
     }
 
@@ -77,7 +98,7 @@ public class MainActivity extends ActionBarActivity {
     View.OnClickListener LoadPicture = new View.OnClickListener() {
         @Override
         public void onClick(View v) {
-            Board.LoadFromDrawable(R.drawable.colortest);
+            performFileSearch();
         }
     };
 
@@ -140,5 +161,109 @@ public class MainActivity extends ActionBarActivity {
             Board.EDShift();
         }
     };
+
+    View.OnClickListener SaveBitmap = new View.OnClickListener() {
+        @Override
+        public void onClick(View v) {
+            Bitmap b = Board.bgBitmap;
+            Canvas c = new Canvas(b);
+            c.drawBitmap(Board.PaintOverlay,0,0,Board.p);
+            new SaveBitMapTask().execute(b);
+        }
+    };
+
+    final int READ_REQUEST_CODE = 25;
+    @SuppressLint("NewApi")
+    public void performFileSearch(){
+        Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+        intent.addCategory(Intent.CATEGORY_OPENABLE);
+        intent.setType("image/*");
+        startActivityForResult(intent, READ_REQUEST_CODE);
+    }
+
+    @Override
+    public void onActivityResult(int requestCode, int resultCode,
+                                 Intent resultData) {
+
+        if (requestCode == READ_REQUEST_CODE && resultCode == Activity.RESULT_OK) {
+            Uri uri = null;
+            if (resultData != null) {
+                uri = resultData.getData();
+                new LoadBitMapTask().execute(uri);
+            }
+        }
+    }
+
+    private class LoadBitMapTask extends AsyncTask<Uri,Void,Bitmap>{
+        @Override
+        protected Bitmap doInBackground(Uri... params) {
+            Bitmap image;
+            try {
+                ParcelFileDescriptor parcelFileDescriptor = getContentResolver().openFileDescriptor(params[0], "r");
+                FileDescriptor fileDescriptor = parcelFileDescriptor.getFileDescriptor();
+                image = DissloveBitmap(fileDescriptor);
+                parcelFileDescriptor.close();
+            }catch (IOException e){
+                return null;
+            }
+            return image;
+        }
+
+        @Override
+        protected void onPostExecute(Bitmap bitmap) {
+            super.onPostExecute(bitmap);
+            Board.LoadFromDrawable(bitmap);
+        }
+    }
+
+    private class SaveBitMapTask extends AsyncTask<Bitmap,Void,Void>{
+
+        @Override
+        protected Void doInBackground(Bitmap... params) {
+            FileOutputStream out = null;
+            String file_path = Environment.getExternalStorageDirectory().getAbsolutePath() +
+                    "/VisualChat";
+            File dir = new File(file_path);
+            if(!dir.exists()) {
+                dir.mkdirs();
+            }
+            DateFormat dateFormat = new SimpleDateFormat("yyyy.MM.dd_HH:mm:ss");
+            Calendar cal = Calendar.getInstance();
+            File file = new File(dir, "sketch" + dateFormat.format(cal.getTime()) + ".png");
+            try {
+                out = new FileOutputStream(file);
+                params[0].compress(Bitmap.CompressFormat.PNG, 100, out);
+            } catch (Exception e) {
+                e.printStackTrace();
+            } finally {
+                try {
+                    if (out != null) {
+                        out.close();
+                    }
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+            return null;
+        }
+    }
+
+    public Bitmap DissloveBitmap(FileDescriptor f){
+        BitmapFactory.Options options = new BitmapFactory.Options();
+        options.inJustDecodeBounds = true;
+        BitmapFactory.decodeFileDescriptor(f,null,options);
+        int size = options.outHeight*options.outWidth;
+        int reqsize = Board.getWidth()*Board.getHeight()*5;
+        int SampleSize =1;
+        System.out.println(size);
+        while (size>reqsize){
+            size = size/2;
+            SampleSize *= 2;
+        }
+        System.out.println(size);
+        options.inJustDecodeBounds = false;
+        options.inSampleSize = SampleSize;
+        return BitmapFactory.decodeFileDescriptor(f,null,options);
+    }
 
 }
