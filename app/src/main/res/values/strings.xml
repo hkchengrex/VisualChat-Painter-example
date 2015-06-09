@@ -3,4 +3,8 @@
 
     <string name="hello_world">Hello world!</string>
     <string name="action_settings">Settings</string>
+    <string name="label_eraser">Eraser</string>
+    <string name="label_colorPlate">Color Plate</string>
+    <string name="label_loadPic">Load Pictures</string>
+    <string name="label_share">Share</string>
 </resources>

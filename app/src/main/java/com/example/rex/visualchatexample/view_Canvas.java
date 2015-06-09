@@ -2,7 +2,6 @@ package com.example.rex.visualchatexample;
 
 import android.content.Context;
 import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Matrix;
@@ -19,9 +18,6 @@ import android.view.View;
 import java.util.ArrayList;
 import java.util.Iterator;
 
-/**
- * Created by Rex on 30/4/2015.
- */
 public class view_Canvas extends View{
 
     Context context;
@@ -34,7 +30,7 @@ public class view_Canvas extends View{
     final int DRAG = 0;
     final int DRAW = 1;
     final int ERASE=0;
-    int DDMODE = DRAG;
+    int DDMODE = DRAW;
     int EDMODE = DRAW;
 
     //MATRIX FOR ZOOMING AND DRAGGING
@@ -87,6 +83,7 @@ public class view_Canvas extends View{
         currPaint.setStrokeWidth(5f);
 
         mPPath = new PaintPath(currPaint);
+        LoadBlank();
     }
 
     public void initPaintLayer(){
@@ -108,8 +105,27 @@ public class view_Canvas extends View{
         canvas.restore();
     }
 
-    public void LoadFromDrawable(Bitmap Source){
+
+    public void LoadBlank(){
+        image_width = 1000;
+        image_height = 1000;
+        //Make some margin space
+        total_height =2 * MARGINAL_BLANK + image_height;
+        total_width = 2 * MARGINAL_BLANK + image_width;
+
+        //Create the bitmap with the margin
+        bgBitmap = Bitmap.createBitmap(total_width, total_height, Bitmap.Config.ARGB_8888);
+        Canvas temp= new Canvas(bgBitmap);
+        temp.drawColor(Color.WHITE);
+
         reset();
+        GrapicsMatrix.preTranslate(-MARGINAL_BLANK, -MARGINAL_BLANK);
+        GrapicsMatrix.invert(PathMatrix);
+        initPaintLayer();
+        this.invalidate();
+    }
+
+    public void LoadFromDrawable(Bitmap Source){
         image_width = Source.getWidth();
         image_height = Source.getHeight();
         //Make some margin space
@@ -120,11 +136,12 @@ public class view_Canvas extends View{
         bgBitmap = Bitmap.createBitmap(total_width, total_height, Bitmap.Config.ARGB_8888);
         Canvas temp= new Canvas(bgBitmap);
         temp.drawColor(Color.WHITE);
-        temp.drawBitmap(Source,MARGINAL_BLANK, MARGINAL_BLANK, new Paint());
+        temp.drawBitmap(Source, MARGINAL_BLANK, MARGINAL_BLANK, new Paint());
 
+        reset();
         GrapicsMatrix.preTranslate(-MARGINAL_BLANK, -MARGINAL_BLANK);
+        GrapicsMatrix.invert(PathMatrix);
         initPaintLayer();
-
         this.invalidate();
     }
 

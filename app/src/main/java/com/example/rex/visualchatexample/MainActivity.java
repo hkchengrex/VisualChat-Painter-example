@@ -20,9 +20,11 @@ import android.os.Bundle;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
-import android.widget.Button;
 import android.widget.SeekBar;
+import android.widget.Toast;
 
+import com.github.clans.fab.FloatingActionButton;
+import com.github.clans.fab.FloatingActionMenu;
 import com.larswerkman.holocolorpicker.ColorPicker;
 import com.larswerkman.holocolorpicker.SVBar;
 
@@ -37,12 +39,13 @@ import java.util.Calendar;
 
 public class MainActivity extends ActionBarActivity {
 
-    Button LoadPic;
-    Button reset;
-    Button ddshift;
-    Button pick;
-    Button erase;
-    Button save;
+    FloatingActionButton DrawNMove;
+    FloatingActionButton EraseButton;
+    FloatingActionButton LoadButton;
+    FloatingActionButton ColorButton;
+    FloatingActionButton ShareButton;
+    FloatingActionMenu FloatMenu;
+
     view_Canvas Board;
     Context context;
     int currColor = Color.BLACK;
@@ -57,8 +60,7 @@ public class MainActivity extends ActionBarActivity {
 
     public void init(){
         context=this;
-
-        LoadPic = (Button) findViewById(R.id.button1);
+/*        LoadPic = (Button) findViewById(R.id.button1);
         LoadPic.setOnClickListener(LoadPicture);
         reset = (Button) findViewById(R.id.button2);
         reset.setOnClickListener(Reset);
@@ -67,9 +69,22 @@ public class MainActivity extends ActionBarActivity {
         pick = (Button) findViewById(R.id.button4);
         pick.setOnClickListener(Pick);
         erase = (Button) findViewById(R.id.button5);
-        erase.setOnClickListener(EraseSE);
+        erase.setOnClickListener(EraseStartEnd);
         save = (Button) findViewById(R.id.button6);
-        save.setOnClickListener(SaveBitmap);
+        save.setOnClickListener(SaveBitmap);*/
+        DrawNMove = (FloatingActionButton) findViewById(R.id.fab1);
+        DrawNMove.setOnClickListener(DDShift);
+        DrawNMove.setOnLongClickListener(ShowMenu);
+        FloatMenu = (FloatingActionMenu) findViewById(R.id.floatmenu);
+        FloatMenu.setOnMenuToggleListener(CloseMenu);
+        EraseButton = (FloatingActionButton) findViewById(R.id.item_eraser);
+        EraseButton.setOnClickListener(EraseStartEnd);
+        ColorButton = (FloatingActionButton) findViewById(R.id.item_colorplate);
+        ColorButton.setOnClickListener(Pick);
+        LoadButton = (FloatingActionButton) findViewById(R.id.item_load);
+        LoadButton.setOnClickListener(LoadPicture);
+        ShareButton = (FloatingActionButton) findViewById(R.id.item_share);
+        ShareButton.setOnClickListener(SaveBitmap);
         Board =(view_Canvas) findViewById(R.id.canvasboard);
     }
 
@@ -95,6 +110,8 @@ public class MainActivity extends ActionBarActivity {
         return super.onOptionsItemSelected(item);
     }
 
+
+
     View.OnClickListener LoadPicture = new View.OnClickListener() {
         @Override
         public void onClick(View v) {
@@ -109,10 +126,36 @@ public class MainActivity extends ActionBarActivity {
         }
     };
 
+    boolean Drawing = true;
     View.OnClickListener DDShift = new View.OnClickListener() {
         @Override
         public void onClick(View v) {
             Board.DDShift();
+            Drawing = !Drawing;
+            if (Drawing){
+                DrawNMove.setImageResource(R.drawable.ic_gesture);
+            }else{
+                DrawNMove.setImageResource(R.drawable.ic_fullscreen);
+            }
+        }
+    };
+
+    View.OnLongClickListener ShowMenu= new View.OnLongClickListener() {
+        @Override
+        public boolean onLongClick(View v) {
+            FloatMenu.showMenuButton(true);
+            FloatMenu.setVisibility(View.VISIBLE);
+            FloatMenu.open(true);
+            return true;
+        }
+    };
+
+    FloatingActionMenu.OnMenuToggleListener CloseMenu = new FloatingActionMenu.OnMenuToggleListener() {
+        @Override
+        public void onMenuToggle(boolean opened) {
+            if (!opened) {
+                FloatMenu.hideMenuButton(true);
+            }
         }
     };
 
@@ -155,7 +198,7 @@ public class MainActivity extends ActionBarActivity {
         }
     };
 
-    View.OnClickListener EraseSE = new View.OnClickListener() {
+    View.OnClickListener EraseStartEnd = new View.OnClickListener() {
         @Override
         public void onClick(View v) {
             Board.EDShift();
@@ -165,10 +208,14 @@ public class MainActivity extends ActionBarActivity {
     View.OnClickListener SaveBitmap = new View.OnClickListener() {
         @Override
         public void onClick(View v) {
-            Bitmap b = Board.bgBitmap;
-            Canvas c = new Canvas(b);
-            c.drawBitmap(Board.PaintOverlay,0,0,Board.p);
-            new SaveBitMapTask().execute(b);
+            if (Board.bgBitmap!=null) {
+                Bitmap b = Board.bgBitmap;
+                Canvas c = new Canvas(b);
+                c.drawBitmap(Board.PaintOverlay, 0, 0, Board.p);
+                new SaveBitMapTask().execute(b);
+            }else{
+                Toast.makeText(context,"No image loaded",Toast.LENGTH_SHORT).show();
+            }
         }
     };
 
@@ -186,7 +233,7 @@ public class MainActivity extends ActionBarActivity {
                                  Intent resultData) {
 
         if (requestCode == READ_REQUEST_CODE && resultCode == Activity.RESULT_OK) {
-            Uri uri = null;
+            Uri uri;
             if (resultData != null) {
                 uri = resultData.getData();
                 new LoadBitMapTask().execute(uri);
@@ -216,10 +263,10 @@ public class MainActivity extends ActionBarActivity {
         }
     }
 
-    private class SaveBitMapTask extends AsyncTask<Bitmap,Void,Void>{
+    private class SaveBitMapTask extends AsyncTask<Bitmap,Void,String>{
 
         @Override
-        protected Void doInBackground(Bitmap... params) {
+        protected String doInBackground(Bitmap... params) {
             FileOutputStream out = null;
             String file_path = Environment.getExternalStorageDirectory().getAbsolutePath() +
                     "/VisualChat";
@@ -229,7 +276,8 @@ public class MainActivity extends ActionBarActivity {
             }
             DateFormat dateFormat = new SimpleDateFormat("yyyy.MM.dd_HH:mm:ss");
             Calendar cal = Calendar.getInstance();
-            File file = new File(dir, "sketch" + dateFormat.format(cal.getTime()) + ".png");
+            String temp = "sketch" + dateFormat.format(cal.getTime());
+            File file = new File(dir, temp + ".png");
             try {
                 out = new FileOutputStream(file);
                 params[0].compress(Bitmap.CompressFormat.PNG, 100, out);
@@ -244,7 +292,13 @@ public class MainActivity extends ActionBarActivity {
                     e.printStackTrace();
                 }
             }
-            return null;
+            return dir+temp;
+        }
+
+        @Override
+        protected void onPostExecute(String s) {
+            super.onPostExecute(s);
+            Toast.makeText(context,"Saved: "+s,Toast.LENGTH_LONG).show();
         }
     }
 
@@ -260,7 +314,6 @@ public class MainActivity extends ActionBarActivity {
             size = size/2;
             SampleSize *= 2;
         }
-        System.out.println(size);
         options.inJustDecodeBounds = false;
         options.inSampleSize = SampleSize;
         return BitmapFactory.decodeFileDescriptor(f,null,options);
