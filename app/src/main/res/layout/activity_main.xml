@@ -45,18 +45,11 @@
         android:visibility="gone">
 
         <com.github.clans.fab.FloatingActionButton
-            android:id="@+id/item_eraser"
+            android:id="@+id/item_share"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:src="@drawable/ic_eraser"
-            fab:fab_label="@string/label_eraser" />
-
-        <com.github.clans.fab.FloatingActionButton
-            android:id="@+id/item_colorplate"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:src="@drawable/ic_palette"
-            fab:fab_label="@string/label_colorPlate" />
+            android:src="@drawable/ic_share"
+            fab:fab_label="@string/label_share" />
 
         <com.github.clans.fab.FloatingActionButton
             android:id="@+id/item_load"
@@ -66,11 +59,18 @@
             fab:fab_label="@string/label_loadPic" />
 
         <com.github.clans.fab.FloatingActionButton
-            android:id="@+id/item_share"
+            android:id="@+id/item_colorplate"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:src="@drawable/ic_share"
-            fab:fab_label="@string/label_share" />
+            android:src="@drawable/ic_palette"
+            fab:fab_label="@string/label_colorPlate" />
+
+        <com.github.clans.fab.FloatingActionButton
+            android:id="@+id/item_eraser"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:src="@drawable/ic_eraser"
+            fab:fab_label="@string/label_eraser" />
 
     </com.github.clans.fab.FloatingActionMenu>
 

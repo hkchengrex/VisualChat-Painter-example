@@ -15,6 +15,7 @@ import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Environment;
 import android.os.ParcelFileDescriptor;
+import android.provider.MediaStore;
 import android.support.v7.app.ActionBarActivity;
 import android.os.Bundle;
 import android.view.Menu;
@@ -28,6 +29,7 @@ import com.github.clans.fab.FloatingActionMenu;
 import com.larswerkman.holocolorpicker.ColorPicker;
 import com.larswerkman.holocolorpicker.SVBar;
 
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileDescriptor;
 import java.io.FileOutputStream;
@@ -84,7 +86,7 @@ public class MainActivity extends ActionBarActivity {
         LoadButton = (FloatingActionButton) findViewById(R.id.item_load);
         LoadButton.setOnClickListener(LoadPicture);
         ShareButton = (FloatingActionButton) findViewById(R.id.item_share);
-        ShareButton.setOnClickListener(SaveBitmap);
+        ShareButton.setOnClickListener(ShareBitmap);
         Board =(view_Canvas) findViewById(R.id.canvasboard);
     }
 
@@ -115,6 +117,7 @@ public class MainActivity extends ActionBarActivity {
     View.OnClickListener LoadPicture = new View.OnClickListener() {
         @Override
         public void onClick(View v) {
+            FloatMenu.hideMenuButton(true);
             performFileSearch();
         }
     };
@@ -162,6 +165,7 @@ public class MainActivity extends ActionBarActivity {
     View.OnClickListener Pick = new View.OnClickListener() {
         @Override
         public void onClick(View v) {
+            FloatMenu.hideMenuButton(true);
             AlertDialog.Builder builder = new AlertDialog.Builder(context);
             builder.setTitle("Pick: ");
             View view = getLayoutInflater().inflate(R.layout.dialog_colorpicker, null);
@@ -201,7 +205,27 @@ public class MainActivity extends ActionBarActivity {
     View.OnClickListener EraseStartEnd = new View.OnClickListener() {
         @Override
         public void onClick(View v) {
+            FloatMenu.hideMenuButton(true);
             Board.EDShift();
+        }
+    };
+
+    View.OnClickListener ShareBitmap = new View.OnClickListener() {
+        @Override
+        public void onClick(View v) {
+            Bitmap bitmap = Board.bgBitmap;
+            Canvas c = new Canvas(bitmap);
+            c.drawBitmap(Board.PaintOverlay, 0, 0, Board.p);
+
+            ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+            bitmap.compress(Bitmap.CompressFormat.PNG, 100, bytes);
+
+            String path = MediaStore.Images.Media.insertImage(getContentResolver(),bitmap,null,null);
+
+            Intent i = new Intent(Intent.ACTION_SEND);
+            i.setType("image/png");
+            i.putExtra(Intent.EXTRA_STREAM, Uri.parse(path));
+            startActivity(Intent.createChooser(i, "Share"));
         }
     };
 
